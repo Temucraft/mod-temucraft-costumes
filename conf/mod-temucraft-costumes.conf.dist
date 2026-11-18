@@ -1,0 +1,33 @@
+[worldserver]
+
+########################################
+# mod-temucraft-costumes
+########################################
+#
+#    Temucraft.Costumes.Enable
+#        Description: .costume wardrobe: wear the look of a creature whose model has every player animation.
+#        Default:     1
+
+Temucraft.Costumes.Enable = 1
+
+#
+#    Temucraft.Costumes.Unlock
+#        Description: How costumes are collected (per account), comma list:
+#                     kill = defeating a creature, talk = talking to a creature, all = every costume is open.
+#        Default:     "kill,talk"
+
+Temucraft.Costumes.Unlock = "kill,talk"
+
+#
+#    Temucraft.Costumes.AnnounceUnlock
+#        Description: Tell the player when a new costume is collected.
+#        Default:     1
+
+Temucraft.Costumes.AnnounceUnlock = 1
+
+#
+#    Temucraft.Costumes.InPvP
+#        Description: Allow costumes in battlegrounds and arenas (0 = taken off on entering).
+#        Default:     0
+
+Temucraft.Costumes.InPvP = 0
