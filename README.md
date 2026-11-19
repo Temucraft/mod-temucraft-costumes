@@ -22,3 +22,5 @@ omni), channel, sit, mount, loot, sleep and kneel. So a costume never slides, fr
 - The look stays through shapeshifts and mounting; it ends on logout or (by default) in battlegrounds and arenas.
 
 GM commands (RBAC): `.costume unlock <display>` (101601) on the selected player, `.costume reload` (101602).
+
+Part of the Temucraft modules for AzerothCore 3.3.5a.
