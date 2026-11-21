@@ -143,7 +143,7 @@ namespace
         uint32 const pick = std::find(it->second.begin(), it->second.end(), display) != it->second.end() ? display : it->second.front();
         if (!mine.insert(pick).second)
             return;
-        CharacterDatabase.Execute("INSERT IGNORE INTO mod_temucraft_costume_collection (account, display) VALUES ({}, {})", Account(p), pick);
+        CharacterDatabase.Execute("INSERT IGNORE INTO `mod_temucraft_account_collection` (`account`, `kind`, `id`) VALUES ({}, 8, {})", Account(p), pick);
         if (cfg.announce)
             ChatHandler(p->GetSession()).PSendSysMessage(Say(p, T_UNLOCKED, "|cff66ccffNew costume:|r {} (.temucraft costume)."), catalog[pick].name);
         if (withAddon.count(p->GetGUID().GetCounter()))
@@ -339,7 +339,7 @@ public:
         if (owned.count(account))
             return;
         auto& mine = owned[account];
-        if (QueryResult r = CharacterDatabase.Query("SELECT display FROM mod_temucraft_costume_collection WHERE account = {}", account))
+        if (QueryResult r = CharacterDatabase.Query("SELECT `id` FROM `mod_temucraft_account_collection` WHERE `account` = {} AND `kind` = 8", account))
             do mine.insert(r->Fetch()[0].Get<uint32>()); while (r->NextRow());
     }
     void OnPlayerLogout(Player* p) override { wearing.erase(p->GetGUID().GetCounter()); withAddon.erase(p->GetGUID().GetCounter()); }
@@ -458,7 +458,7 @@ public:
         if (!target) return true;
         if (!catalog.count(display)) { handler->SendSysMessage(Say(target, T_UNKNOWN, "That display isn't a costume.")); return true; }
         owned[Account(target)].insert(display);
-        CharacterDatabase.Execute("INSERT IGNORE INTO mod_temucraft_costume_collection (account, display) VALUES ({}, {})", Account(target), display);
+        CharacterDatabase.Execute("INSERT IGNORE INTO `mod_temucraft_account_collection` (`account`, `kind`, `id`) VALUES ({}, 8, {})", Account(target), display);
         handler->PSendSysMessage(Say(target, T_GM_UNLOCKED, "Unlocked {} for {}."), catalog[display].name, target->GetName());
         return true;
     }

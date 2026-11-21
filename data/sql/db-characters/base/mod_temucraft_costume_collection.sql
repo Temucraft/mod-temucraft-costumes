@@ -1,6 +1,10 @@
 -- mod-temucraft-costumes: costumes each account has collected.
-CREATE TABLE IF NOT EXISTS `mod_temucraft_costume_collection` (
-  `account` INT UNSIGNED NOT NULL,
-  `display` INT UNSIGNED NOT NULL,
-  PRIMARY KEY (`account`, `display`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- kind 8 of the shared account collection
+CREATE TABLE IF NOT EXISTS `mod_temucraft_account_collection` (
+  `account` int unsigned NOT NULL, `kind` tinyint unsigned NOT NULL, `id` int unsigned NOT NULL,
+  PRIMARY KEY (`account`, `kind`, `id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Temucraft: account collections (kinds in mod-temucraft-account-wide)';
+-- rows from the old `mod_temucraft_costume_collection` table, if this server still has it, then it goes
+SET @old := (SELECT COUNT(*) FROM information_schema.TABLES WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'mod_temucraft_costume_collection');
+SET @sql := IF(@old > 0, 'INSERT IGNORE INTO `mod_temucraft_account_collection` (`account`, `kind`, `id`) SELECT `account`, 8, `display` FROM `mod_temucraft_costume_collection`', 'DO 0');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+DROP TABLE IF EXISTS `mod_temucraft_costume_collection`;
