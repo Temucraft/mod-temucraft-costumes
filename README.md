@@ -23,4 +23,7 @@ omni), channel, sit, mount, loot, sleep and kneel. So a costume never slides, fr
 
 GM commands (RBAC): `.temucraft costume unlock <display>` (101601) on the selected player, `.temucraft costume reload` (101602).
 
+`mod_temucraft_costume_display.sql` is made by `tools/build_costume_sql.py`: each model path is written once and the
+displays point at its number, which keeps the file small.
+
 Part of the Temucraft modules for AzerothCore 3.3.5a.
