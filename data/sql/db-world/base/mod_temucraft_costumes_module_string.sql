@@ -12,7 +12,7 @@ INSERT INTO `module_string` (`module`, `id`, `string`) VALUES
 ('mod-temucraft-costumes', 9, 'Back'),
 ('mod-temucraft-costumes', 10, 'You now look like {}.'),
 ('mod-temucraft-costumes', 11, 'You take the costume off.'),
-('mod-temucraft-costumes', 12, '|cff66ccffNew costume:|r {} (.costume).'),
+('mod-temucraft-costumes', 12, '|cff66ccffNew costume:|r {} (.temucraft costume).'),
 ('mod-temucraft-costumes', 13, 'No costumes yet: defeat creatures or talk to people to collect their looks.'),
 ('mod-temucraft-costumes', 14, 'Costumes can''t be worn in battlegrounds and arenas.'),
 ('mod-temucraft-costumes', 15, 'No costume of yours matches that.'),

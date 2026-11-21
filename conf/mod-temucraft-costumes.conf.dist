@@ -5,7 +5,7 @@
 ########################################
 #
 #    Temucraft.Costumes.Enable
-#        Description: .costume wardrobe: wear the look of a creature whose model has every player animation.
+#        Description: .temucraft costume wardrobe: wear the look of a creature whose model has every player animation.
 #        Default:     1
 
 Temucraft.Costumes.Enable = 1

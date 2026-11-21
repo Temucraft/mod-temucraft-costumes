@@ -12,10 +12,10 @@
 //
 // - Unlocked per account: defeating a creature (or talking to a friendly one) unlocks its costume, or every costume
 //   is open (Temucraft.Costumes.Unlock).
-// - .costume opens the wardrobe: costumes by creature type, pages, a name search, and "Take it off".
-// - The look stays through shapeshifts and mounting; it ends with "Take it off", .costume off, logging out, or
+// - .temucraft costume opens the wardrobe: costumes by creature type, pages, a name search, and "Take it off".
+// - The look stays through shapeshifts and mounting; it ends with "Take it off", .temucraft costume off, logging out, or
 //   entering a battleground or arena (Temucraft.Costumes.InPvP = 0).
-// - With the Temucraft interface (TemucraftCostumes.lua, addon prefix TCO) .costume opens a wardrobe window with a
+// - With the Temucraft interface (TemucraftCostumes.lua, addon prefix TCO) .temucraft costume opens a wardrobe window with a
 //   model preview, categories and a search box; without it, the same wardrobe as a gossip menu.
 //   Addon -> server: HELLO, LIST, WEAR~display, OFF. Server -> addon: OPEN, BEGIN~all~worn~count, IDS~a,b,c..., END,
 //   WORN~display (0 = none), NEW~display.
@@ -145,7 +145,7 @@ namespace
             return;
         CharacterDatabase.Execute("INSERT IGNORE INTO mod_temucraft_costume_collection (account, display) VALUES ({}, {})", Account(p), pick);
         if (cfg.announce)
-            ChatHandler(p->GetSession()).PSendSysMessage(Say(p, T_UNLOCKED, "|cff66ccffNew costume:|r {} (.costume)."), catalog[pick].name);
+            ChatHandler(p->GetSession()).PSendSysMessage(Say(p, T_UNLOCKED, "|cff66ccffNew costume:|r {} (.temucraft costume)."), catalog[pick].name);
         if (withAddon.count(p->GetGUID().GetCounter()))
             TemucraftAddonSend(p, PREFIX, "NEW~" + std::to_string(pick));
     }
@@ -417,13 +417,13 @@ public:
     {
         static ChatCommandTable sub =
         {
-            { "",       HandleOpen,   SEC_PLAYER, Console::No },
-            { "off",    HandleOff,    SEC_PLAYER, Console::No },
-            { "menu",   HandleMenu,   SEC_PLAYER, Console::No },
+            { "",       HandleOpen,   101650, Console::No },
+            { "off",    HandleOff,    101651, Console::No },
+            { "menu",   HandleMenu,   101652, Console::No },
             { "unlock", HandleUnlock, 101601,     Console::No },   // RBAC permission (data/sql/db-auth)
             { "reload", HandleReload, 101602,     Console::Yes },
         };
-        static ChatCommandTable root = { { "costume", sub } };
+        static ChatCommandTable root = { { "temucraft costume", sub } };
         return root;
     }
 
@@ -451,7 +451,7 @@ public:
         if (Player* p = handler->GetPlayer()) TakeOff(p, true);
         return true;
     }
-    // .costume unlock <display>: unlock a costume for the selected player's account
+    // .temucraft costume unlock <display>: unlock a costume for the selected player's account
     static bool HandleUnlock(ChatHandler* handler, uint32 display)
     {
         Player* target = handler->getSelectedPlayerOrSelf();
