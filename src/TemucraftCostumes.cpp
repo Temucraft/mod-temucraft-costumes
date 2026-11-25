@@ -31,12 +31,14 @@
 #include "ScriptedGossip.h"
 #include "StringFormat.h"
 #include "TemucraftAddonMessage.h"
+#include "TemucraftLocked.h"
 #include "TemucraftModuleText.h"
 #include "WorldSession.h"
 #include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <map>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -69,10 +71,15 @@ namespace
     struct Costume { std::string name; uint8 type = 0; };
     std::unordered_map<uint32, Costume> catalog;                    // display -> costume (only allowed displays)
     std::unordered_map<uint32, std::vector<uint32>> byCreature;      // creature entry -> its allowed displays
-    std::unordered_map<uint32, std::unordered_set<uint32>> owned;    // account -> displays
-    std::unordered_map<uint32, uint32> wearing;                      // player guid -> display
-    std::unordered_set<uint32> setting;                              // players whose display we are setting
-    std::unordered_set<uint32> withAddon;                            // players whose client has the wardrobe window
+    // account -> displays. Two characters of one account (playerbots alts) can kill on two map threads at once, and
+    // the login load runs on the world thread: every access to owned (and its inner sets) is under ownedLock.
+    std::mutex ownedLock;
+    std::unordered_map<uint32, std::unordered_set<uint32>> owned;
+    // per player, touched from gossip (world thread) and map change / display hooks (map threads): single operations
+    // locked (TemucraftLocked.h); each player's own entry is only changed from that player's hooks.
+    Temucraft::LockedMap<uint32, uint32> wearing;                    // player guid -> display
+    Temucraft::LockedSet<uint32> setting;                            // players whose display we are setting
+    Temucraft::LockedSet<uint32> withAddon;                          // players whose client has the wardrobe window
     constexpr char const* PREFIX = "TCO";
 
     void SendWorn(Player* p)
@@ -129,6 +136,7 @@ namespace
     {
         if (cfg.all)
             return catalog.count(display);
+        std::lock_guard<std::mutex> guard(ownedLock);
         auto it = owned.find(Account(p));
         return it != owned.end() && it->second.count(display);
     }
@@ -138,11 +146,13 @@ namespace
         auto it = byCreature.find(c->GetEntry());
         if (it == byCreature.end() || cfg.all)
             return;
-        auto& mine = owned[Account(p)];
         uint32 const display = c->GetNativeDisplayId();
         uint32 const pick = std::find(it->second.begin(), it->second.end(), display) != it->second.end() ? display : it->second.front();
-        if (!mine.insert(pick).second)
-            return;
+        {
+            std::lock_guard<std::mutex> guard(ownedLock);
+            if (!owned[Account(p)].insert(pick).second)
+                return;
+        }
         CharacterDatabase.Execute("INSERT IGNORE INTO `mod_temucraft_account_collection` (`account`, `kind`, `id`) VALUES ({}, 8, {})", Account(p), pick);
         if (cfg.announce)
             ChatHandler(p->GetSession()).PSendSysMessage(Say(p, T_UNLOCKED, "|cff66ccffNew costume:|r {} (.temucraft costume)."), catalog[pick].name);
@@ -200,8 +210,16 @@ namespace
         };
         if (cfg.all)
             for (auto const& [d, c] : catalog) consider(d);
-        else if (auto it = owned.find(Account(p)); it != owned.end())
-            for (uint32 d : it->second) consider(d);
+        else
+        {
+            std::vector<uint32> have;
+            {
+                std::lock_guard<std::mutex> guard(ownedLock);
+                if (auto it = owned.find(Account(p)); it != owned.end())
+                    have.assign(it->second.begin(), it->second.end());
+            }
+            for (uint32 d : have) consider(d);
+        }
         std::sort(out.begin(), out.end(), [](uint32 a, uint32 b) { return catalog[a].name != catalog[b].name ? catalog[a].name < catalog[b].name : a < b; });
         return out;
     }
@@ -211,10 +229,13 @@ namespace
     {
         std::vector<uint32> mine;
         if (!cfg.all)
+        {
+            std::lock_guard<std::mutex> guard(ownedLock);
             if (auto it = owned.find(Account(p)); it != owned.end())
                 for (uint32 d : it->second)
                     if (catalog.count(d))
                         mine.push_back(d);
+        }
         auto w = wearing.find(p->GetGUID().GetCounter());
         TemucraftAddonSend(p, PREFIX, Acore::StringFormat("BEGIN~{}~{}~{}", cfg.all ? 1 : 0, w == wearing.end() ? 0 : w->second,
             cfg.all ? catalog.size() : mine.size()));
@@ -336,11 +357,17 @@ public:
     void OnPlayerLogin(Player* p) override
     {
         uint32 const account = Account(p);
-        if (owned.count(account))
-            return;
-        auto& mine = owned[account];
+        {
+            std::lock_guard<std::mutex> guard(ownedLock);
+            if (owned.count(account))
+                return;
+        }
+        std::unordered_set<uint32> loaded;
         if (QueryResult r = CharacterDatabase.Query("SELECT `id` FROM `mod_temucraft_account_collection` WHERE `account` = {} AND `kind` = 8", account))
-            do mine.insert(r->Fetch()[0].Get<uint32>()); while (r->NextRow());
+            do loaded.insert(r->Fetch()[0].Get<uint32>()); while (r->NextRow());
+        std::lock_guard<std::mutex> guard(ownedLock);
+        // a kill of another character of this account may have added displays meanwhile: keep them
+        owned[account].insert(loaded.begin(), loaded.end());
     }
     void OnPlayerLogout(Player* p) override { wearing.erase(p->GetGUID().GetCounter()); withAddon.erase(p->GetGUID().GetCounter()); }
     void OnPlayerCreatureKill(Player* p, Creature* c) override { if (cfg.enable && cfg.unlockKill && c) Unlock(p, c); }
@@ -457,7 +484,11 @@ public:
         Player* target = handler->getSelectedPlayerOrSelf();
         if (!target) return true;
         if (!catalog.count(display)) { handler->SendSysMessage(Say(target, T_UNKNOWN, "That display isn't a costume.")); return true; }
-        owned[Account(target)].insert(display);
+        {
+            std::lock_guard<std::mutex> guard(ownedLock);
+            owned[Account(target)].insert(display);
+        }
+
         CharacterDatabase.Execute("INSERT IGNORE INTO `mod_temucraft_account_collection` (`account`, `kind`, `id`) VALUES ({}, 8, {})", Account(target), display);
         handler->PSendSysMessage(Say(target, T_GM_UNLOCKED, "Unlocked {} for {}."), catalog[display].name, target->GetName());
         return true;
